@@ -8,29 +8,34 @@ class TestAuthMiddleware(MiddlewareMixin):
 
         merchant_email = request.headers.get('X-Merchant-Email')
 
-        # ❌ DO NOT fallback silently
+        # ❌ No header → reject request
         if not merchant_email:
             print("❌ Missing X-Merchant-Email header")
             request.user = None
             request.merchant = None
             return None
 
+        merchant_email = merchant_email.strip().lower()
         print("MW HIT:", merchant_email)
 
-        user, _ = User.objects.get_or_create(
-            username=merchant_email,
-            defaults={"email": merchant_email}
-        )
+        # ✅ ALWAYS use email-based lookup (NOT get_or_create on username)
+        user = User.objects.filter(email=merchant_email).first()
 
+        if not user:
+            user = User.objects.create(
+                username=merchant_email,
+                email=merchant_email
+            )
+            print(f"Created new user for {merchant_email}")
+
+        # ✅ Merchant must NOT be auto-created in middleware in production
         merchant = Merchant.objects.filter(user=user).first()
 
         if not merchant:
-            merchant = Merchant.objects.create(
-                user=user,
-                business_name=f"Business for {merchant_email}",
-                bank_account_id="ACC001"
-            )
-            print(f"Created new merchant for {merchant_email}")
+            print(f"❌ Merchant missing for {merchant_email}")
+            request.user = user
+            request.merchant = None
+            return None
 
         request.user = user
         request.merchant = merchant
