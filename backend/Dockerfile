@@ -27,3 +27,4 @@ RUN chmod +x /app/entrypoint.sh
 
 # Use absolute path
 ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["gunicorn", "app.wsgi:application", "--bind", "0.0.0.0:$PORT"]
