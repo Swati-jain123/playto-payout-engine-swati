@@ -6,22 +6,39 @@ from app.models.transaction import Transaction
 from django.core.management import call_command
 
 class DebugDBView(APIView):
-    # This allows you to visit the URL without being logged in
-    permission_classes = [AllowAny] 
+    permission_classes = [AllowAny]
 
     def get(self, request):
         merchants = Merchant.objects.all()
         transactions = Transaction.objects.all().order_by('-id')[:10]
-        
+
+        from django.contrib.auth.models import User
+
         return Response({
             "status": "connected",
-            "merchant_count": merchants.count(),
+
+            "counts": {
+                "users": User.objects.count(),
+                "merchants": merchants.count(),
+                "transactions": transactions.count(),
+            },
+
             "merchants": [
-                {"id": m.id, "email": m.user.email, "business": m.business_name} 
+                {
+                    "id": m.id,
+                    "user_email": getattr(m.user, "email", None),
+                    "user_id": m.user.id,
+                    "business": m.business_name
+                }
                 for m in merchants
             ],
+
             "recent_transactions": [
-                {"type": t.transaction_type, "amount": t.amount_paise, "ref": t.reference_id}
+                {
+                    "type": t.transaction_type,
+                    "amount": t.amount_paise,
+                    "ref": t.reference_id
+                }
                 for t in transactions
             ]
         })
