@@ -9,21 +9,14 @@ done
 
 echo "DB ready"
 
-# Run migrations only when enabled
-if [ "$RUN_MIGRATIONS" = "true" ]; then
-  echo "Running migrations..."
-  python manage.py migrate --noinput
+echo "Running migrations..."
+python manage.py migrate --noinput
 
-  echo "Seeding merchants..."
-  python manage.py seed_merchants
-fi
+echo "Seeding merchants (safe)..."
+python manage.py seed_merchants || true
 
-echo "Starting Celery Worker..."
+echo "Starting Celery..."
+celery -A app worker -l info &
 
-# Start Celery in background
-celery -A app worker -l info --concurrency=2 &
-
-echo "Starting Django server..."
-
-# Start Gunicorn (MAIN PROCESS - must stay alive)
+echo "Starting server..."
 exec gunicorn app.wsgi:application --bind 0.0.0.0:$PORT
