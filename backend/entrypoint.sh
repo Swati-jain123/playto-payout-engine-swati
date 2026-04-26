@@ -9,8 +9,8 @@ done
 
 echo "DB ready"
 
-# Only run migrate/seed when starting server (NOT for CLI commands)
-if [ "$RUN_MIGRATIONS" = "true" ] && [ "$1" = "gunicorn" ]; then
+# Run migrations only when enabled
+if [ "$RUN_MIGRATIONS" = "true" ]; then
   echo "Running migrations..."
   python manage.py migrate --noinput
 
@@ -18,5 +18,12 @@ if [ "$RUN_MIGRATIONS" = "true" ] && [ "$1" = "gunicorn" ]; then
   python manage.py seed_merchants
 fi
 
-echo "Starting service..."
-exec "$@"
+echo "Starting Celery Worker..."
+
+# Start Celery in background
+celery -A app worker -l info --concurrency=2 &
+
+echo "Starting Django server..."
+
+# Start Gunicorn (MAIN PROCESS - must stay alive)
+exec gunicorn app.wsgi:application --bind 0.0.0.0:$PORT
