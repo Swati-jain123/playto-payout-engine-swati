@@ -125,7 +125,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 
 
 # Celery Configuration
-CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
+CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://red-d7murr67r5hc73aj2ef0:6379/0')
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
