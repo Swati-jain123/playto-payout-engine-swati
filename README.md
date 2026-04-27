@@ -1,7 +1,3 @@
-Here’s your **final, polished README.md** — clean, professional, and exactly what reviewers expect. You can **copy-paste directly** 👇
-
----
-
 ```md
 # 💳 Playto Payout Engine
 
@@ -12,61 +8,31 @@ A minimal, production-grade payout processing system that simulates real-world m
 ## 🚀 Features
 
 - ✅ **Ledger-based Accounting**
-  - No stored balance field
-  - Balance derived from transactions (single source of truth)
-
+  - No stored balance field. Balance is derived from transactions (Single Source of Truth).
 - ✅ **Money Integrity**
-  - All amounts stored in **paise (BigInteger)**
-  - No floats → no rounding errors
-
+  - All amounts stored in **paise (BigInteger)**. No floats → no rounding errors.
 - ✅ **Concurrency Safe**
-  - Uses **PostgreSQL row-level locks (`SELECT FOR UPDATE`)**
-  - Prevents double spending
-
+  - Uses **PostgreSQL row-level locks (`SELECT FOR UPDATE`)** to prevent double spending.
 - ✅ **Idempotent API**
-  - `Idempotency-Key` ensures duplicate requests return same response
-  - Safe for retries
-
+  - `Idempotency-Key` ensures duplicate requests return the same response.
 - ✅ **Payout State Machine**
-```
-
-PENDING → PROCESSING → COMPLETED
-↘ FAILED
-
-````
-- Invalid transitions are blocked
-
+  - `PENDING` → `PROCESSING` → `COMPLETED` or `FAILED`. Invalid transitions are blocked.
 - ✅ **Async Processing**
-- Celery worker processes payouts
-- Simulated bank behavior:
-  - 70% success
-  - 20% failure
-  - 10% stuck (retry)
-
-- ✅ **Retry Logic**
-- Max 3 retries for stuck payouts
-- Prevents indefinite processing state
-
+  - Celery worker processes payouts with simulated bank behavior (70% success, 20% failure, 10% retry).
 - ✅ **Merchant Dashboard**
-- Available balance
-- Held balance
-- Payout history
-- Live updates
-
-- ✅ **Dockerized Setup**
-- One command to run entire system
+  - Live view of Available balance, Held balance, and Payout history.
 
 ---
 
 ## 🧱 Tech Stack
 
-| Layer        | Tech                         |
-|-------------|------------------------------|
-| Backend      | Django + DRF                 |
-| Database     | PostgreSQL 15                |
-| Queue        | Redis + Celery               |
-| Frontend     | React + Tailwind + Vite      |
-| Infra        | Docker Compose               |
+| Layer       | Tech                         |
+|------------|------------------------------|
+| Backend     | Django + DRF                 |
+| Database    | PostgreSQL 15                |
+| Queue       | Redis + Celery               |
+| Frontend    | React + Tailwind + Vite      |
+| Infra       | Docker / Render              |
 
 ---
 
@@ -75,47 +41,32 @@ PENDING → PROCESSING → COMPLETED
 ### 1. Clone repository
 
 ```bash
-git clone <your-repo-url>
-cd playto-payout-engine
-````
-
----
-
-### 2. Setup environment
-
-```bash
-cp .env.example .env
+git clone [https://github.com/Swati-jain123/playto-payout-engine-swati](https://github.com/Swati-jain123/playto-payout-engine-swati)
+cd playto-payout-engine-swati
 ```
 
----
-
-### 3. Run with Docker
+### 2. Run with Docker
 
 ```bash
 docker-compose up --build
 ```
 
----
+### 3. Access application
 
-### 4. Access application
-
-* 🌐 Frontend → [http://localhost](http://localhost)
-* 🔧 Backend API → [http://localhost:8000](http://localhost:8000)
+* 🌐 **Live Demo:** [https://playto-payout-engine-swati-1.onrender.com/](https://playto-payout-engine-swati-1.onrender.com/)
+* 🔧 **Local Backend:** http://localhost:8000
 
 ---
 
 ## 🧪 Seed Data
 
-On first run, the system auto-creates:
+On first run, the system auto-creates 3 merchants with **₹2500** initial balance each.
 
-* 3 merchants
-* ₹2500 initial balance each
-
-| Merchant   | Email                                                 |
-| ---------- | ----------------------------------------------------- |
-| Merchant 1 | [merchant1@example.com] |
-| Merchant 2 | [merchant2@example.com]|
-| Merchant 3 | [merchant3@example.com]|
+| Merchant   | Email                     |
+| ---------- | ------------------------- |
+| Merchant 1 | merchant1@example.com     |
+| Merchant 2 | merchant2@example.com     |
+| Merchant 3 | merchant3@example.com     |
 
 ---
 
@@ -127,139 +78,52 @@ On first run, the system auto-creates:
 POST /api/v1/payouts/
 ```
 
-Headers:
-
-```
+**Headers:**
+```text
 Idempotency-Key: <unique-uuid>
 X-Merchant-Email: merchant1@example.com
 ```
 
-Body:
-
+**Body:**
 ```json
 {
   "amount_paise": 10000,
-  "bank_account_id": "bank_123"
+  "bank_account_id": "ACC001" 
 }
 ```
-
----
-
-### ➤ Get Dashboard
-
-```http
-GET /api/v1/dashboard/
-```
-
-Headers:
-
-```
-X-Merchant-Email: merchant1@example.com
-```
+*Note: Use formats like `ACC001`, `BCC001`, or `BANK_HID_123` for the bank account ID.*
 
 ---
 
 ## 🧠 Core Design Decisions
 
-### 1. Ledger System (No Balance Column)
-
-Balance is computed as:
-
-```
-CREDIT + RELEASE - HOLD - DEBIT
-```
-
-**Why:**
-
-* Prevents inconsistency
-* Full audit trail
-* Industry-standard approach
-
----
+### 1. Ledger System
+Instead of a simple `balance` column, we calculate: `CREDIT + RELEASE - HOLD - DEBIT`. This ensures a full audit trail and prevents balance mismatch bugs.
 
 ### 2. Concurrency Handling
-
-```python
-Transaction.objects.select_for_update().filter(merchant_id=merchant_id)
-```
-
-* Locks rows during payout
-* Prevents race conditions
-
----
+We use `Transaction.objects.select_for_update()` during the payout initiation. This locks the merchant's ledger rows, ensuring that if two payouts are requested at the exact same millisecond, the system processes them one by one to prevent overdrawing.
 
 ### 3. Idempotency
-
-* Stored in `IdempotencyRecord`
-* Same key → same response
-* Prevents duplicate payouts
-
----
-
-### 4. Atomic Money Movement
-
-* HOLD → DEBIT / RELEASE happens inside DB transaction
-* Ensures no money duplication or loss
-
----
-
-## 🧪 Tests
-
-* ✅ Concurrency test (double payout scenario)
-* ✅ Idempotency test
-
----
-
-## 🐳 Docker Services
-
-* `db` → PostgreSQL
-* `redis` → message broker
-* `backend` → Django API
-* `celery` → worker
-* `celery-beat` → scheduler
-* `frontend` → React app
+Every payout request requires an `Idempotency-Key`. If a network timeout occurs and the client retries the same key, the system recognizes it and returns the original result instead of creating a second payout.
 
 ---
 
 ## 📂 Project Structure
 
-```
+```text
 backend/
-  app/
-    models/
-    views/
-    services/
-    tasks/
-
-frontend/
-docker-compose.yml
+  ├── app/
+  │   ├── models/    # Ledger, Payout, Merchant models
+  │   ├── services/  # Business logic (LedgerService, BankSimulator)
+  │   └── tasks/     # Celery background tasks
+frontend/            # React dashboard
+docker-compose.yml   # Full system orchestration
 ```
 
 ---
 
-## 🌟 What This Project Demonstrates
+## 📬 Submission Info
 
-* Real-world **money movement system design**
-* Strong understanding of **database consistency**
-* Proper use of **locking and transactions**
-* Clean separation of concerns
-
----
-
-## 📌 Notes
-
-This project prioritizes:
-
-* ✔ correctness over features
-* ✔ integrity over speed
-* ✔ real-world system behavior
-
----
-
-## 📬 Submission
-
-* GitHub Repo: <your-link>
-* Live URL: <your-deployment-link>
-
----
-
+* **GitHub Repo:** [https://github.com/Swati-jain123/playto-payout-engine-swati](https://github.com/Swati-jain123/playto-payout-engine-swati)
+* **Live Deployment:** [https://playto-payout-engine-swati-1.onrender.com/](https://playto-payout-engine-swati-1.onrender.com/)
+```
