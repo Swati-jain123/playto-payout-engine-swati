@@ -12,7 +12,7 @@ function App() {
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const email = 'merchant2@example.com'   // 👈 change here to test different merchants
+        const email = 'merchant3@example.com'   // 👈 change here to test different merchants
         localStorage.setItem('merchant_email', email)
 
         const response = await api.get('/dashboard/')
